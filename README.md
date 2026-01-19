@@ -18,6 +18,12 @@ Open-Meteo API → Fetch Soil Data ──┬── Analyze Moisture ──┬─
                                       model_metadata.json
 ```
 
+### DAG Visualization
+
+The following diagram shows the workflow DAG for a single field:
+
+![Soil Moisture Workflow DAG](output/soil-workflow.png)
+
 ### Edge-to-Cloud Architecture (DPU Mode)
 
 With `--enable-dpu`, the workflow distributes processing across edge and cloud:
