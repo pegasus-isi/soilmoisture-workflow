@@ -43,6 +43,72 @@ Cloud (CPU):  Analyze → Predict → Visualize  (compute intensive)
 - **Visualizations**: Time series plots, urgency gauges, trend indicators
 - **Edge-to-Cloud**: Optional DPU-accelerated workflow for FABRIC deployments
 
+## Data Source
+
+This workflow uses the [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs) to fetch soil data from the ERA5/ERA5-Land reanalysis dataset.
+
+### API Endpoint
+
+```
+https://archive-api.open-meteo.com/v1/era5
+```
+
+### Parameters Fetched
+
+The `fetch_soil_data.py` script retrieves the following hourly variables:
+
+| Parameter | Description | Unit |
+|-----------|-------------|------|
+| `soil_moisture_0_to_7cm` | Volumetric soil water content at 0-7cm depth | m³/m³ |
+| `soil_temperature_0_to_7cm` | Soil temperature at 0-7cm depth | °C |
+| `soil_temperature_7_to_28cm` | Soil temperature at 7-28cm depth | °C |
+
+### Data Characteristics
+
+- **Source**: ERA5-Land reanalysis from ECMWF
+- **Temporal Resolution**: Hourly
+- **Spatial Resolution**: ~9km grid (data sampled at polygon centroid)
+- **Coverage**: Historical data only (end date must be in the past)
+- **API Key**: Not required for standard usage
+
+For more details on available variables and data methodology, see the [Open-Meteo Historical Weather API documentation](https://open-meteo.com/en/docs/historical-weather-api).
+
+### Customizing Parameters
+
+To change or add new parameters from Open-Meteo, modify the `fetch_soil_data.py` script:
+
+1. **Edit the `hourly_vars` list** in the `fetch_open_meteo_hourly()` function (around line 63):
+
+```python
+hourly_vars = [
+    "soil_moisture_0_to_7cm",
+    "soil_temperature_0_to_7cm",
+    "soil_temperature_7_to_28cm",
+    # Add new parameters here, e.g.:
+    "soil_moisture_7_to_28cm",
+    "soil_moisture_28_to_100cm",
+]
+```
+
+2. **Update the data extraction** in `fetch_open_meteo_data()` to retrieve the new variables from the API response.
+
+3. **Update the record creation** to include the new fields in the output CSV.
+
+**Available soil variables from Open-Meteo** (ERA5-Land):
+
+| Variable | Description |
+|----------|-------------|
+| `soil_temperature_0_to_7cm` | Temperature at 0-7cm depth |
+| `soil_temperature_7_to_28cm` | Temperature at 7-28cm depth |
+| `soil_temperature_28_to_100cm` | Temperature at 28-100cm depth |
+| `soil_temperature_100_to_255cm` | Temperature at 100-255cm depth |
+| `soil_moisture_0_to_7cm` | Moisture at 0-7cm depth |
+| `soil_moisture_7_to_28cm` | Moisture at 7-28cm depth |
+| `soil_moisture_28_to_100cm` | Moisture at 28-100cm depth |
+| `soil_moisture_100_to_255cm` | Moisture at 100-255cm depth |
+
+See the [Open-Meteo API documentation](https://open-meteo.com/en/docs/historical-weather-api) for the complete list of available variables including weather, precipitation, and evapotranspiration data.
+
 ### ML-Based Predictions (Required)
 
 - **LSTM Neural Network**: Deep learning model for soil moisture forecasting
