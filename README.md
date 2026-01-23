@@ -442,6 +442,29 @@ For quick local testing, use the provided scripts:
 - `example_usage.sh` shows a lightweight Open-Meteo workflow walkthrough.
 - `run_manual.sh` runs the full manual pipeline end-to-end.
 
+## AI Interactions
+
+This workflow was developed collaboratively with Claude. Below are the key prompts used during development.
+
+**Initial Setup:**
+- "I need to build a workflow for soil moisture to answer: Should you water or not? Can you help me find a data source and build the workflow?"
+- "Can you help me create a soil moisture workflow similar to the air quality workflow, using https://agromonitoring.com as the data source?"
+
+**Feature Development:**
+- "Can you add ML to the soil moisture workflow?"
+- "Can you create a script so I can test this workflow manually before running with Pegasus?"
+- "Can you modify the workflow so that data ingestion/analysis can be done on DPU?"
+- "Can you modify the workflow so that data ingestion/analysis can be done on Raspberry Pi?"
+
+**Data Source Changes:**
+- "Can we use a different data source instead of https://agromonitoring.com that is free?"
+- "Can we use https://open-meteo.com/en/docs as the data source instead?"
+- "Can you update the README to reflect the data source and parameters being fetched?"
+
+**Debugging and Fixes:**
+- "Ran the workflow on a VM and got: `Not enough data for training. Using simple model.` How do I fix this?"
+- "Fetch jobs fail with `Error fetching historical data: 401`. How do I resolve this?"
+
 ## Troubleshooting
 
 ### Common Issues
