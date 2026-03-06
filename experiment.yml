@@ -1,0 +1,159 @@
+# -------------------------------------------------------------------------
+#
+# Kiso experiment configuration for the Soil Moisture Workflow on FABRIC.
+#
+# Prerequisites:
+#   pip install kiso[fabric]
+#
+# Create secrets/ directory and add your FABRIC credentials file:
+#   mkdir -p secrets
+#   cp /path/to/your/fabric_rc.sh secrets/fabric_rc.sh
+#
+# Check the experiment configuration:
+#   kiso check experiment.yml
+#
+# Provision resources and run the experiment:
+#   kiso up experiment.yml
+#   kiso run experiment.yml
+#
+# Destroy resources when done:
+#   kiso down experiment.yml
+#
+# -------------------------------------------------------------------------
+name: soilmoisture-workflow
+
+# ---------------------------------------------------------------------------
+# HTCondor cluster layout:
+#   - central-manager-daemon: schedules jobs and manages the pool
+#   - submit-daemon:          submits the Pegasus DAG
+#   - execute-daemon:         runs all workflow jobs (fetch, analyze, train,
+#                             predict, visualize)
+# ---------------------------------------------------------------------------
+deployment:
+  htcondor:
+    - kind: central-manager
+      labels:
+        - central-manager-daemon
+    - kind: submit
+      labels:
+        - submit-daemon
+    - kind: execute
+      labels:
+        - execute-daemon
+
+# ---------------------------------------------------------------------------
+# Apptainer (Singularity) is installed on execute nodes so that workflow
+# jobs can run inside docker://kthare10/soilmoisture:latest
+# ---------------------------------------------------------------------------
+software:
+  apptainer:
+    labels:
+      - execute-daemon
+
+# ---------------------------------------------------------------------------
+# FABRIC site configuration
+#
+# rc_file: path to your FABRIC credentials shell script, e.g.
+#   export FABRIC_CREDMGR_HOST=cm.fabric-testbed.net
+#   export FABRIC_ORCHESTRATOR_HOST=orchestrator.fabric-testbed.net
+#   export FABRIC_TOKEN_LOCATION=~/.tokens.json
+#   export FABRIC_BASTION_HOST=bastion-1.fabric-testbed.net
+#   export FABRIC_BASTION_USER=<your-bastion-username>
+#   export FABRIC_BASTION_KEY_LOCATION=~/.ssh/fabric_bastion_key
+#   export FABRIC_SLICE_PRIVATE_KEY_FILE=~/.ssh/id_rsa_fabric
+#   export FABRIC_SLICE_PUBLIC_KEY_FILE=~/.ssh/id_rsa_fabric.pub
+#   export FABRIC_PROJECT_ID=<your-project-id>
+#
+# site: FABRIC site to deploy on. Other options: TACC, STAR, WASH, NCSA, etc.
+#
+# Machines:
+#   head node  (central-manager + submit): small  — 4 cores, 8 GB RAM
+#   execute node:                           medium — 8 cores, 16 GB RAM
+#     train_model requires 4 GB; medium provides comfortable headroom.
+#
+# Network:
+#   FABNetv4 provides routed IPv4 connectivity within the slice.
+# ---------------------------------------------------------------------------
+sites:
+  - kind: fabric
+    rc_file: secrets/fabric_rc
+    walltime: "08:00:00"
+    site: UCSD
+    name_prefix: soilmoisture-workflow
+    image: default_rocky_8
+    resources:
+      machines:
+        - labels:
+            - central-manager-daemon
+            - submit-daemon
+          flavour_desc:
+            core: 1
+            mem: 4
+            disk: 30
+          number: 1
+        - labels:
+            - execute-daemon
+          flavour_desc:
+            core: 2
+            mem: 6
+            disk: 30
+          number: 1
+      networks:
+        - labels:
+            - fabric-network
+          name: soilmoisture-net
+          kind: FABNetv4
+          site: UCSD
+          nic:
+            kind: SharedNIC
+            model: ConnectX-6
+
+# ---------------------------------------------------------------------------
+# Pegasus experiment
+#
+# workflow_generator.py is run on the submit node. It generates workflow.yml
+# and submits it to the local HTCondor pool via Pegasus.
+#
+# Adjust --polygon-ids, --start-date, --end-date, --crop-type, and
+# --soil-type to match your target fields and analysis period.
+#
+# timeout: 7200 s (2 h) — allows time for data fetch, LSTM training, and
+#           the full fan-out/fan-in DAG to complete.
+# ---------------------------------------------------------------------------
+experiments:
+  - kind: pegasus
+    name: soilmoisture-experiment
+    count: 1
+    main: |
+      cat > polygons.json <<EOF
+      [
+        {
+          "id": "field1",
+          "name": "North Field",
+          "coordinates": [[-121.50, 37.50], [-121.48, 37.50], [-121.48, 37.52], [-121.50, 37.52], [-121.50, 37.50]]
+        }
+      ]
+      EOF
+      ./workflow_generator.py \
+        --polygons-file polygons.json \
+        --polygon-ids field1 \
+        --start-date 2024-01-01 \
+        --end-date 2024-01-31 \
+        --crop-type tomato \
+        --soil-type loam \
+        --output workflow.yml
+      pegasus-plan --submit -s condorpool -o local workflow.yml
+    poll_interval: 60
+    timeout: 7200
+    submit_node_labels:
+      - submit-daemon
+    setup:
+      - labels:
+          - submit-daemon
+        script: |
+          chmod +x workflow_generator.py
+    outputs:
+      - labels:
+          - submit-daemon
+        src: ~kiso/soilmoisture-workflow/output/
+        dst: ./results/
