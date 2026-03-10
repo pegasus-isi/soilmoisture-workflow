@@ -232,6 +232,21 @@ Define your agricultural field as a polygon in a JSON file:
     --output workflow.yml
 ```
 
+#### Western Massachusetts Example
+
+A sample polygon file for Western Massachusetts (Pioneer Valley) is included as `western_mass.json`:
+
+```bash
+./workflow_generator.py \
+    --polygons-file western_mass.json \
+    --polygon-ids western_mass \
+    --start-date 2026-02-01 \
+    --end-date 2026-03-09 \
+    --crop-type default \
+    --soil-type loam \
+    --output workflow.yml
+```
+
 #### Edge-to-Cloud DPU Mode
 
 ```bash
