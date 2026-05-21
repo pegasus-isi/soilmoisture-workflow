@@ -80,7 +80,7 @@ sites:
     walltime: "08:00:00"
     site: UCSD
     name_prefix: soilmoisture-workflow
-    image: default_rocky_8
+    image: default_rocky_9
     resources:
       machines:
         - labels:
