@@ -105,17 +105,35 @@ class SoilMoistureWorkflow:
         logger.info("Creating replica catalog")
         self.rc = ReplicaCatalog()
 
-    def create_transformation_catalog(self, exec_site_name="condorpool", container_image="kthare10/soilmoisture:latest"):
+    def create_transformation_catalog(
+        self,
+        exec_site_name="condorpool",
+        container_sif="Apptainer/SoilMoisture_Container.sif",
+    ):
         """Create transformation catalog with executables and containers."""
         logger.info("Creating transformation catalog")
         self.tc = TransformationCatalog()
 
-        # Container - use Singularity with docker:// URL
+        # Container - a local Apptainer .sif built with `apptainer build`.
+        # Pegasus stages the file like any other input, so image_site is the
+        # site where the .sif physically lives (the submit host = "local").
+        sif_path = (
+            container_sif
+            if os.path.isabs(container_sif)
+            else os.path.join(self.wf_dir, container_sif)
+        )
+        if not os.path.exists(sif_path):
+            logger.warning(
+                "Apptainer image not found at %s — build it first with: "
+                "apptainer build %s Apptainer/SoilMoisture_Container.def",
+                sif_path,
+                sif_path,
+            )
         soilmoisture_container = Container(
             "soilmoisture_container",
             container_type=Container.SINGULARITY,
-            image=f"docker://{container_image}",
-            image_site="docker_hub",
+            image="file://" + sif_path,
+            image_site="local",
         )
 
         # Add transformations
@@ -375,10 +393,11 @@ def main():
 
     # Container
     parser.add_argument(
-        "--container-image",
+        "--container-sif",
         type=str,
-        default="kthare10/soilmoisture:latest",
-        help="Docker container image for workflow"
+        default="Apptainer/SoilMoisture_Container.sif",
+        help="Path to the Apptainer .sif image, absolute or relative to the "
+             "workflow directory (default: Apptainer/SoilMoisture_Container.sif)"
     )
 
     # Output
@@ -415,7 +434,7 @@ def main():
         workflow.create_replica_catalog()
         workflow.create_transformation_catalog(
             exec_site_name=args.execution_site_name,
-            container_image=args.container_image
+            container_sif=args.container_sif
         )
         workflow.create_workflow(args)
         workflow.write()

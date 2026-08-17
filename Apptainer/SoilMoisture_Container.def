@@ -1,0 +1,52 @@
+# Soil-moisture workflow container (irrigation decision support, Open-Meteo API).
+#
+# Converted from Docker/SoilMoisture_Dockerfile. `Bootstrap: docker` pulls and
+# converts the OCI base image directly, so no Docker installation is needed to
+# build the .sif.
+#
+# Build (on an x86_64 Linux host — see README):
+#   apptainer build Apptainer/SoilMoisture_Container.sif Apptainer/SoilMoisture_Container.def
+
+Bootstrap: docker
+From: python:3.8.12-slim
+
+%post
+    # Install system dependencies.
+    # curl + wget are mandatory: PegasusLite downloads its worker package
+    # inside the container before the job script ever runs.
+    apt-get update && \
+        apt-get install -y --no-install-recommends \
+            git \
+            wget \
+            curl \
+            openssh-client \
+            build-essential \
+            ca-certificates
+    rm -rf /var/lib/apt/lists/*
+
+    # Install Python dependencies
+    pip install --no-cache-dir \
+        pandas \
+        numpy \
+        matplotlib \
+        scipy \
+        requests \
+        scikit-learn \
+        pytz \
+        torch \
+        tqdm
+
+    # Docker's WORKDIR /app has no Apptainer equivalent; create the directory
+    # here and let Pegasus jobs cd into their own working directory at runtime.
+    mkdir -p /app/output
+
+%environment
+    # Set Python to not buffer output (important for Pegasus log capture)
+    export PYTHONUNBUFFERED=1
+
+%runscript
+    exec /bin/bash "$@"
+
+%labels
+    maintainer Komal Thareja <kthare10@renci.org>
+    description Soil Moisture workflow - Open-Meteo irrigation decision support

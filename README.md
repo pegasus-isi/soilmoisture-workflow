@@ -428,26 +428,32 @@ Multi-panel PNG showing:
     --output workflow.yml
 ```
 
-### Custom Docker Container
+### Custom Container
 
-Build and push multi-platform Docker container:
+Build the Apptainer image from the workflow root:
 
 ```bash
-cd Docker
+apptainer build Apptainer/SoilMoisture_Container.sif \
+    Apptainer/SoilMoisture_Container.def
 
-# Build for both x86_64
-docker buildx build --platform linux/amd64 \
-    -f SoilMoisture_Dockerfile \
-    -t kthare10/soilmoisture:latest --push .
+# Verify
+apptainer exec Apptainer/SoilMoisture_Container.sif \
+    python -c "import torch, sklearn, pandas; print('ok')"
 ```
 
-Use custom container:
+No registry push — Pegasus stages the `.sif` like any other input file.
+Apptainer cannot build on macOS, and a `.sif` is single-architecture (there is no
+multi-arch manifest, unlike a Docker tag) — build on a Linux host matching your
+worker nodes. See `../APPTAINER.md`. The legacy `Docker/SoilMoisture_Dockerfile`
+is kept as a fallback.
+
+Use a custom image:
 
 ```bash
 ./workflow_generator.py \
     --polygons-file polygons.json \
     --polygon-ids field1 \
-    --container-image myregistry/soilmoisture:v2 \
+    --container-sif /shared/images/soilmoisture_v2.sif \
     --output workflow.yml
 ```
 

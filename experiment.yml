@@ -42,8 +42,9 @@ deployment:
         - execute-daemon
 
 # ---------------------------------------------------------------------------
-# Apptainer (Singularity) is installed on execute nodes so that workflow
-# jobs can run inside docker://kthare10/soilmoisture:latest
+# Apptainer is installed on execute nodes so that workflow jobs can run inside
+# Apptainer/SoilMoisture_Container.sif, which Pegasus stages from the submit
+# host (image_site="local") rather than pulling from a registry.
 # ---------------------------------------------------------------------------
 software:
   apptainer:
