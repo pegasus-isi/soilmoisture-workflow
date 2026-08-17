@@ -14,11 +14,13 @@
 # 3. Install Python dependencies:
 #    pip install pandas numpy matplotlib scipy requests pytz Pegasus-wms
 #
-# 4. Build Docker container (multi-platform for DPU support):
-#    cd Docker
-#    docker buildx build --platform linux/amd64,linux/arm64 \
-#        -f SoilMoisture_Dockerfile \
-#        -t kthare10/soilmoisture:latest --push .
+# 4. Build the Apptainer container (from the workflow root, no registry push):
+#    apptainer build Apptainer/SoilMoisture_Container.sif \
+#        Apptainer/SoilMoisture_Container.def
+#
+#    A .sif has no multi-arch manifest (one file, one architecture), so DPU/edge
+#    runs need a second .sif built on an aarch64 host, passed via
+#    --container-sif. Apptainer cannot build on macOS; see APPTAINER.md.
 
 # ==============================================================================
 # Step 1: Fetch Soil Data from Open-Meteo (ERA5)

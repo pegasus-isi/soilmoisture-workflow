@@ -36,12 +36,14 @@ pegasus-plan --submit -s condorpool -o local workflow.yml
 pegasus-status <run_directory>
 ```
 
-**Build and push Docker container:**
+**Build the container:**
 ```bash
-cd Docker
-docker buildx build --platform linux/amd64 \
-    -f SoilMoisture_Dockerfile \
-    -t kthare10/soilmoisture:latest --push .
+# From the workflow root. No registry push — Pegasus stages the .sif like any
+# other input file. Apptainer cannot build on macOS and a .sif has no multi-arch
+# manifest, so build on a Linux host matching the worker nodes; see
+# APPTAINER.md.
+apptainer build Apptainer/SoilMoisture_Container.sif \
+    Apptainer/SoilMoisture_Container.def
 ```
 
 ## Architecture
@@ -91,7 +93,7 @@ fetch_soil_data (per polygon)
 
 - `condorpool` (default): Standard HTCondor vanilla universe
 - DPU mode (`--enable-dpu`): Splits edge-site (fetch) vs cloud-site (compute) for I/O efficiency
-- Container: `docker://kthare10/soilmoisture:latest` via Singularity
+- Container: `Apptainer/SoilMoisture_Container.sif`, staged by Pegasus (`image_site="local"`); no registry pull
 
 ### Crop & Soil Configuration
 
