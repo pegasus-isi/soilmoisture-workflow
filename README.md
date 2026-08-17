@@ -170,7 +170,7 @@ Both notebooks provision the following cluster architecture:
 - Python 3.9+
 - Pegasus WMS v5.0+
 - HTCondor v10.2+
-- Docker or Singularity
+- Apptainer (on the submit host to build, and on the worker nodes to run)
 
 ### API Key
 
@@ -195,8 +195,10 @@ soilmoisture-workflow/
 │   ├── train_model.py             # LSTM model training for moisture prediction
 │   ├── predict_irrigation.py      # Irrigation prediction (ML + rules)
 │   └── visualize_moisture.py      # Multi-panel visualization
+├── Apptainer/
+│   └── SoilMoisture_Container.def # Container definition (built to a .sif)
 ├── Docker/
-│   └── SoilMoisture_Dockerfile    # Multi-platform container
+│   └── SoilMoisture_Dockerfile    # Legacy Dockerfile, kept as a fallback
 ├── output/                        # Workflow outputs
 └── README.md
 ```
@@ -216,6 +218,56 @@ Define your agricultural field as a polygon in a JSON file:
   }
 ]
 ```
+
+### 2. Build the Container
+
+Do this before step 3 — the generator expects the `.sif` to exist.
+
+```bash
+# Run from the workflow root. No registry push needed: Pegasus stages the .sif
+# like any other input file.
+apptainer build Apptainer/SoilMoisture_Container.sif \
+    Apptainer/SoilMoisture_Container.def
+
+# Verify
+apptainer exec Apptainer/SoilMoisture_Container.sif \
+    python -c "import torch, sklearn, pandas; print('ok')"
+apptainer exec Apptainer/SoilMoisture_Container.sif which curl wget
+```
+
+`workflow_generator.py` looks for `Apptainer/SoilMoisture_Container.sif` by default
+(override with `--container-sif`).
+
+Apptainer cannot build on macOS, and a `.sif` is single-architecture — build on a
+Linux host matching your worker nodes. A DPU/edge run needs a second `.sif` built on
+an aarch64 host. See [`APPTAINER.md`](APPTAINER.md). The legacy
+`Docker/SoilMoisture_Dockerfile` is kept as a fallback.
+
+<details>
+<summary>Optional: publish the image to ghcr.io</summary>
+
+Useful for sharing one build across a team or citing an immutable artifact. Needs a
+GitHub token with `write:packages`.
+
+```bash
+echo "$GHCR_TOKEN" | apptainer registry login --username <github-user> \
+    --password-stdin oras://ghcr.io
+
+TAG=$(git rev-parse --short HEAD)
+apptainer push Apptainer/SoilMoisture_Container.sif \
+    oras://ghcr.io/pegasus-isi/soilmoisture-workflow:$TAG
+
+# On the submit host, pull back to the path the generator expects
+apptainer pull Apptainer/SoilMoisture_Container.sif \
+    oras://ghcr.io/pegasus-isi/soilmoisture-workflow:$TAG
+```
+
+Do **not** put the `oras://` URL in the transformation catalog — Pegasus supports
+`docker://`, `shub://`, `library://`, `shifter://` and `file://`, not `oras://`.
+Treat ghcr.io as a distribution channel and keep staging the local `.sif`. Details in
+[`APPTAINER.md`](APPTAINER.md).
+
+</details>
 
 ### 3. Generate Workflow
 
@@ -430,24 +482,11 @@ Multi-panel PNG showing:
 
 ### Custom Container
 
-Build the Apptainer image from the workflow root:
+See [Quick Start step 2](#2-build-the-container) for the build command and the
+optional ghcr.io publishing recipe; [`APPTAINER.md`](APPTAINER.md) has the
+definition-file reference.
 
-```bash
-apptainer build Apptainer/SoilMoisture_Container.sif \
-    Apptainer/SoilMoisture_Container.def
-
-# Verify
-apptainer exec Apptainer/SoilMoisture_Container.sif \
-    python -c "import torch, sklearn, pandas; print('ok')"
-```
-
-No registry push — Pegasus stages the `.sif` like any other input file.
-Apptainer cannot build on macOS, and a `.sif` is single-architecture (there is no
-multi-arch manifest, unlike a Docker tag) — build on a Linux host matching your
-worker nodes. See `../APPTAINER.md`. The legacy `Docker/SoilMoisture_Dockerfile`
-is kept as a fallback.
-
-Use a custom image:
+To point the workflow at an image somewhere else:
 
 ```bash
 ./workflow_generator.py \

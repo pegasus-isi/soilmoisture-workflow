@@ -41,7 +41,7 @@ pegasus-status <run_directory>
 # From the workflow root. No registry push — Pegasus stages the .sif like any
 # other input file. Apptainer cannot build on macOS and a .sif has no multi-arch
 # manifest, so build on a Linux host matching the worker nodes; see
-# ../APPTAINER.md.
+# APPTAINER.md.
 apptainer build Apptainer/SoilMoisture_Container.sif \
     Apptainer/SoilMoisture_Container.def
 ```

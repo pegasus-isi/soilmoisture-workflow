@@ -20,7 +20,7 @@
 #
 #    A .sif has no multi-arch manifest (one file, one architecture), so DPU/edge
 #    runs need a second .sif built on an aarch64 host, passed via
-#    --container-sif. Apptainer cannot build on macOS; see ../APPTAINER.md.
+#    --container-sif. Apptainer cannot build on macOS; see APPTAINER.md.
 
 # ==============================================================================
 # Step 1: Fetch Soil Data from Open-Meteo (ERA5)
