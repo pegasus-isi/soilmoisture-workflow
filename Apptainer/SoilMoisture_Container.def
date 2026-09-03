@@ -19,7 +19,6 @@ From: python:3.8.12-slim
             git \
             wget \
             curl \
-            openssh-client \
             build-essential \
             ca-certificates
     rm -rf /var/lib/apt/lists/*
