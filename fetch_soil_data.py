@@ -143,8 +143,9 @@ def main():
     parser.add_argument('--polygon-id', type=str, help='Polygon ID')
     parser.add_argument('--polygon-ids', type=str, nargs='+',
                         help='Multiple polygon IDs')
-    parser.add_argument('--polygons-file', type=str, required=True,
-                        help='JSON file with polygon definitions')
+    parser.add_argument('--polygons-file', type=str, default='polygons.json',
+                        help='JSON file with polygon definitions '
+                             '(default: polygons.json)')
     parser.add_argument('--start-date', type=str,
                         help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', type=str,

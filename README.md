@@ -345,7 +345,7 @@ output/
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `--polygons-file` | JSON file with polygon definitions | - |
+| `--polygons-file` | JSON file with polygon definitions | polygons.json |
 | `--polygon-ids` | Polygon IDs to analyze (optional) | - |
 | `--start-date` | Start date YYYY-MM-DD | 30 days ago |
 | `--end-date` | End date YYYY-MM-DD | Today |

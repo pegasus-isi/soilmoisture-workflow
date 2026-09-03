@@ -341,8 +341,8 @@ def main():
     parser.add_argument(
         "--polygons-file",
         type=str,
-        required=True,
-        help="JSON file with polygon definitions"
+        default="polygons.json",
+        help="JSON file with polygon definitions (default: polygons.json)"
     )
 
     # Date range
