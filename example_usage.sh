@@ -82,8 +82,10 @@ echo "=== Generating workflow ==="
     --soil-type loam \
     --output workflow.yml
 
-# Submit to HTCondor
-# pegasus-plan --submit -s compute -o local workflow.yml
+# Plan and submit (the generator never submits). compute comes from a site
+# catalog (-s FILE or ~/.pegasusrc); on a plain HTCondor pool with no catalog,
+# generate with -e condorpool and plan with -s condorpool.
+# pegasus-plan --dir submit -s compute -o local --submit workflow.yml
 
 # ==============================================================================
 # Edge-to-Cloud Workflow (DPU Mode)
