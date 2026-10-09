@@ -144,7 +144,7 @@ experiments:
         --soil-type loam \
         -e condorpool \
         --output workflow.yml
-      pegasus-plan --dir submit --submit -s condorpool -o local workflow.yml
+      pegasus-plan --dir submit --submit -s condorpool -o local --output-dir "$PWD/output" workflow.yml
     poll_interval: 60
     timeout: 7200
     submit_node_labels:

@@ -321,7 +321,7 @@ with `-e condorpool` and plan with `-s condorpool` (see [Sites](#sites)).
 
 ```bash
 # Standard mode
-pegasus-plan --dir submit -s compute -o local --submit workflow.yml
+pegasus-plan --dir submit -s compute -o local --output-dir "$PWD/output" --submit workflow.yml
 
 # DPU mode
 pegasus-plan --submit -s edgepool -s cloudpool -o local workflow.yml
@@ -373,12 +373,12 @@ a default `condorpool` site:
 
 ```bash
 ./workflow_generator.py -e condorpool
-pegasus-plan --dir submit -s condorpool -o local --submit workflow.yml
+pegasus-plan --dir submit -s condorpool -o local --output-dir "$PWD/output" --submit workflow.yml
 ```
 
-With no site catalog, Pegasus's built-in `local` site stages the results to
-`./wf-output/`; the notebook's catalog (and a hosted catalog setup) stages
-them to `./output/`.
+Outputs land in `./output/`: the printed plan command passes `--output-dir`
+(otherwise Pegasus's built-in `local` site would use `./wf-output/`), and the
+notebook's catalog stages them there too.
 
 The notebook drives the same generator class step by step — it writes the
 `create_sites_catalog()` placeholder (local + HTCondor `compute`), and submits

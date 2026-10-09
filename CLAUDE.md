@@ -34,7 +34,7 @@ pip install -r requirements.txt
 # Plan and submit (the generator never submits; it prints this command).
 # compute comes from a site catalog (-s FILE or ~/.pegasusrc); on a plain
 # HTCondor pool with no catalog, generate with -e condorpool and use -s condorpool.
-pegasus-plan --dir submit -s compute -o local --submit workflow.yml
+pegasus-plan --dir submit -s compute -o local --output-dir "$PWD/output" --submit workflow.yml
 pegasus-status <run_directory>
 ```
 
