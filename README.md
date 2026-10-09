@@ -376,6 +376,10 @@ a default `condorpool` site:
 pegasus-plan --dir submit -s condorpool -o local --submit workflow.yml
 ```
 
+With no site catalog, Pegasus's built-in `local` site stages the results to
+`./wf-output/`; the notebook's catalog (and a hosted catalog setup) stages
+them to `./output/`.
+
 The notebook drives the same generator class step by step — it writes the
 `create_sites_catalog()` placeholder (local + HTCondor `compute`), and submits
 from an explicit cell:
