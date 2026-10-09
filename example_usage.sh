@@ -83,7 +83,7 @@ echo "=== Generating workflow ==="
     --output workflow.yml
 
 # Submit to HTCondor
-# pegasus-plan --submit -s condorpool -o local workflow.yml
+# pegasus-plan --submit -s compute -o local workflow.yml
 
 # ==============================================================================
 # Edge-to-Cloud Workflow (DPU Mode)

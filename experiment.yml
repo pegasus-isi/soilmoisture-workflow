@@ -143,7 +143,7 @@ experiments:
         --crop-type tomato \
         --soil-type loam \
         --output workflow.yml
-      pegasus-plan --submit -s condorpool -o local workflow.yml
+      pegasus-plan --submit -s compute -o local workflow.yml
     poll_interval: 60
     timeout: 7200
     submit_node_labels:

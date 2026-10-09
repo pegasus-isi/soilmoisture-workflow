@@ -316,7 +316,7 @@ A sample polygon file for Western Massachusetts (Pioneer Valley) is included as 
 
 ```bash
 # Standard mode
-pegasus-plan --submit -s condorpool -o local workflow.yml
+pegasus-plan --submit -s compute -o local workflow.yml
 
 # DPU mode
 pegasus-plan --submit -s edgepool -s cloudpool -o local workflow.yml
@@ -351,8 +351,31 @@ output/
 | `--end-date` | End date YYYY-MM-DD | Today |
 | `--crop-type` | Crop for threshold selection | default |
 | `--soil-type` | Soil for water capacity | loam |
-| `-e, --execution-site-name` | HTCondor pool name | condorpool |
+| `-e, --execution-site` | Site to plan against (the name hosted catalogs give their site) | compute |
+| `-s, --hosted-site-catalog` | Hosted site catalog to plan against, e.g. `unity.yml` | none (`~/.pegasusrc` if set) |
+| `--site-style` | `auto`: keep an existing `sites.yml` entry or hosted catalog, else write `compute` as an HTCondor pool; `condor`/`slurm`: (re)write it; `none`: leave `sites.yml` alone | auto |
+| `--queue`, `--project` | Batch partition and allocation account (Slurm) | - |
+| `--site-scratch` | Slurm shared scratch visible to workers and the submit host | ./work |
+| `--site-profile`, `--tag-profile` | Extra profiles on the site or on tagged jobs; repeatable | - |
+| `--shared-filesystem` | Read inputs directly from the submit host (on for Slurm, off for HTCondor) | auto |
+| `--sites-yml` | Local site catalog | sites.yml |
+| `--container-sif` | Apptainer image, absolute or relative to the workflow directory | Apptainer/SoilMoisture_Container.sif |
 | `-o, --output` | Output workflow file | workflow.yml |
+
+### Sites
+
+The workflow names no scheduler: each job states memory and a wall-clock
+runtime, and plans against a site named `compute`. With `-s unity.yml` (or a
+hosted catalog set in `~/.pegasusrc`) the hosted catalog defines it; with no
+options `custom_sites.py` writes it to `sites.yml` as an HTCondor pool. For a
+Slurm cluster:
+
+```bash
+./workflow_generator.py --site-style slurm --queue cpu --project my_lab
+pegasus-plan --submit -s compute -o local workflow.yml
+```
+
+`custom_sites.py` also runs standalone (`./custom_sites.py --help`).
 
 ### ML Training Arguments
 

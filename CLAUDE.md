@@ -32,7 +32,7 @@ pip install -r requirements.txt
     --output workflow.yml
 
 # Submit to HTCondor via Pegasus
-pegasus-plan --submit -s condorpool -o local workflow.yml
+pegasus-plan --submit -s compute -o local workflow.yml
 pegasus-status <run_directory>
 ```
 
@@ -91,7 +91,7 @@ fetch_soil_data (per polygon)
 
 ### Execution Environments
 
-- `condorpool` (default): Standard HTCondor vanilla universe
+- `compute` (default): written by `custom_sites.py` as an HTCondor pool, or taken from a hosted site catalog (`-s unity.yml`); `--site-style slurm --queue --project` for Slurm
 - DPU mode (`--enable-dpu`): Splits edge-site (fetch) vs cloud-site (compute) for I/O efficiency
 - Container: `Apptainer/SoilMoisture_Container.sif`, staged by Pegasus (`image_site="local"`); no registry pull
 
