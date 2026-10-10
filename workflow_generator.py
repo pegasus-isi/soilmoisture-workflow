@@ -16,9 +16,16 @@ Usage:
     ./workflow_generator.py --polygons-file polygons.json \
         --polygon-ids field1 field2 --output workflow.yml
 
-    # Edge-to-cloud with DPU
-    ./workflow_generator.py --polygon-ids abc123 --enable-dpu \
-        --edge-site edgepool --cloud-site cloudpool --output workflow.yml
+    # A centrally hosted site catalog, or a plain HTCondor pool:
+    ./workflow_generator.py -s access-pegasus.yml
+    ./workflow_generator.py -e condorpool
+
+Sites follow pegasus-isi/pegasus-gromacs: jobs run on a site named "compute",
+defined by a centrally hosted site catalog (-s access-pegasus.yml, ...;
+https://github.com/pegasushub/pegasus-site-catalogs) or by one in
+~/.pegasusrc. The generator writes no site catalog; on a plain HTCondor pool
+with no catalog, use -e condorpool. It never plans or submits: it prints the
+pegasus-plan command (the notebook submits from an explicit cell).
 """
 
 import argparse
@@ -69,14 +76,63 @@ class SoilMoistureWorkflow:
         self.tc.write()
         self.wf.write(file=self.dagfile)
 
-    def create_pegasus_properties(self):
+    # ------------------------------------------------------------------
+    # Plan / run / monitor (thin wrappers over the Pegasus API Workflow
+    # object, for interactive use e.g. from a Jupyter notebook)
+    # ------------------------------------------------------------------
+    def plan_submit(self, exec_site_name="compute", raise_errors=False):
+        try:
+            self.wf.plan(
+                dir="submit",
+                sites=[exec_site_name],
+                output_sites=["local"],
+                cleanup="none",
+                verbose=1,
+                submit=True,
+            )
+        except PegasusClientError as e:
+            print(e)
+            if raise_errors:
+                raise
+
+    def status(self):
+        try:
+            self.wf.status(long=True)
+        except PegasusClientError as e:
+            print(e)
+
+    def wait(self):
+        try:
+            self.wf.wait()
+        except PegasusClientError as e:
+            print(e)
+
+    def statistics(self):
+        try:
+            self.wf.statistics()
+        except PegasusClientError as e:
+            print(e)
+
+    def create_pegasus_properties(self, hosted_site_catalog=None):
         """Create Pegasus properties configuration."""
         self.props = Properties()
         self.props["pegasus.transfer.threads"] = "16"
+        if hosted_site_catalog:
+            # Use one of Pegasus' centrally hosted site catalogs instead of
+            # a locally generated one. pegasus-plan downloads and caches the
+            # named file from the catalog repository at plan time.
+            # https://pegasus.isi.edu/documentation/reference-guide/catalogs.html#centrally-hosted-site-catalogs
+            self.props["pegasus.catalog.site.repo.file"] = hosted_site_catalog
 
-    def create_sites_catalog(self, exec_site_name="condorpool"):
-        """Create site catalog."""
-        logger.info(f"Creating site catalog for execution site: {exec_site_name}")
+    # ------------------------------------------------------------------
+    # Site Catalog
+    #
+    # Not used by the CLI below — pegasus-plan resolves the site catalog from
+    # a centrally hosted one instead (see -s/--hosted-site-catalog and
+    # create_pegasus_properties above). Kept for programmatic/notebook use
+    # when a self-contained, locally generated HTCondor site catalog is wanted.
+    # ------------------------------------------------------------------
+    def create_sites_catalog(self, exec_site_name="compute"):
         self.sc = SiteCatalog()
 
         local = Site("local").add_directories(
@@ -107,7 +163,7 @@ class SoilMoistureWorkflow:
 
     def create_transformation_catalog(
         self,
-        exec_site_name="condorpool",
+        exec_site_name="compute",
         container_sif="Apptainer/SoilMoisture_Container.sif",
     ):
         """Create transformation catalog with executables and containers."""
@@ -177,14 +233,15 @@ class SoilMoistureWorkflow:
             container=soilmoisture_container,
         ).add_pegasus_profile(memory="2 GB")
 
-        self.tc.add_containers(soilmoisture_container)
-        self.tc.add_transformations(
+        transformations = [
             fetch_soil_data,
             analyze_moisture,
             train_model,
             predict_irrigation,
             visualize_moisture,
-        )
+        ]
+        self.tc.add_containers(soilmoisture_container)
+        self.tc.add_transformations(*transformations)
 
     def create_workflow(self, args):
         """Create the complete workflow with ML training."""
@@ -240,6 +297,8 @@ class SoilMoistureWorkflow:
         fetch_job.add_inputs(polygons_file)
         fetch_job.add_outputs(soil_data_file, stage_out=True, register_replica=False)
         fetch_job.add_pegasus_profile(label=polygon_id)
+        # Retry infrastructure transients (the script retries the API itself).
+        fetch_job.add_dagman_profile(retry="2")
 
         # Job 2: Analyze moisture
         analyze_job = Job("analyze_moisture", _id=f"analyze_{polygon_id}", node_label=f"analyze_{polygon_id}")
@@ -383,14 +442,6 @@ def main():
         help="Number of epochs for ML model training"
     )
 
-    # Execution site
-    parser.add_argument(
-        "-e", "--execution-site-name",
-        type=str,
-        default="condorpool",
-        help="HTCondor pool name for execution"
-    )
-
     # Container
     parser.add_argument(
         "--container-sif",
@@ -398,6 +449,29 @@ def main():
         default="Apptainer/SoilMoisture_Container.sif",
         help="Path to the Apptainer .sif image, absolute or relative to the "
              "workflow directory (default: Apptainer/SoilMoisture_Container.sif)"
+    )
+
+    # Standard Pegasus arguments
+    parser.add_argument(
+        "-s",
+        "--hosted-site-catalog",
+        metavar="FILE",
+        type=str,
+        default=None,
+        help="Name of a Pegasus centrally hosted site catalog to plan against "
+        "(e.g. access-pegasus.yml), instead of a locally generated one. Sets "
+        "pegasus.catalog.site.repo.file; see "
+        "https://pegasus.isi.edu/documentation/reference-guide/catalogs.html"
+        "#centrally-hosted-site-catalogs",
+    )
+    parser.add_argument(
+        "-e",
+        "--execution-site-name",
+        metavar="STR",
+        type=str,
+        default="compute",
+        help="Execution site name (default: compute; condorpool on a plain "
+        "HTCondor pool with no site catalog)",
     )
 
     # Output
@@ -429,12 +503,13 @@ def main():
                 logger.error("No polygon IDs found in polygons file")
                 sys.exit(1)
         workflow = SoilMoistureWorkflow(dagfile=args.output)
-        workflow.create_pegasus_properties()
-        workflow.create_sites_catalog(exec_site_name=args.execution_site_name)
+
+        workflow.create_pegasus_properties(
+            hosted_site_catalog=args.hosted_site_catalog)
         workflow.create_replica_catalog()
         workflow.create_transformation_catalog(
             exec_site_name=args.execution_site_name,
-            container_sif=args.container_sif
+            container_sif=args.container_sif,
         )
         workflow.create_workflow(args)
         workflow.write()
@@ -450,7 +525,10 @@ def main():
         logger.info(f"  ML enabled: Yes (LSTM soil moisture prediction)")
         logger.info("\nNext steps:")
         logger.info(f"  1. Review workflow: {args.output}")
-        logger.info(f"  2. Submit workflow: pegasus-plan --submit -s {args.execution_site_name} -o local {args.output}")
+        # --output-dir: no site catalog defines "local", so Pegasus's built-in local
+        # site would otherwise stage outputs to ./wf-output.
+        logger.info(f"  2. Plan and submit: pegasus-plan --dir submit -s {args.execution_site_name} -o local "
+                    f"--output-dir {workflow.local_storage_dir} --submit {args.output}")
         logger.info(f"  3. Monitor status:  pegasus-status <submit_dir>")
         logger.info("=" * 70 + "\n")
 

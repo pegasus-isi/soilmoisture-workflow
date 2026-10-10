@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -73,7 +74,26 @@ def fetch_open_meteo_hourly(lat: float, lon: float, start_date: datetime,
         "end_date": end_date.strftime("%Y-%m-%d"),
         "timezone": "UTC",
     }
-    response = requests.get(endpoint, params=params, timeout=60)
+    # The archive API times out under load. Retry with backoff, and on a final
+    # failure fall through to the empty result below rather than raising: the
+    # job must still write its declared output, or HTCondor holds it on
+    # stage-out ("No such file or directory") and the DAG hangs.
+    response = None
+    for attempt in range(1, 4):
+        try:
+            response = requests.get(endpoint, params=params, timeout=60)
+            if response.status_code < 500 and response.status_code != 429:
+                break
+            print(f"Open-Meteo returned {response.status_code} "
+                  f"(attempt {attempt}/3)")
+        except requests.RequestException as exc:
+            print(f"Open-Meteo request failed (attempt {attempt}/3): {exc}")
+            response = None
+        if attempt < 3:
+            time.sleep(10 * 2 ** (attempt - 1))
+    if response is None:
+        print("Error fetching Open-Meteo data: no response after 3 attempts")
+        return {}
     if response.status_code != 200:
         print(f"Error fetching Open-Meteo data: {response.status_code}")
         print(response.text)
@@ -197,6 +217,14 @@ def main():
 
         combined_df = pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
         save_data(combined_df, args.output)
+        if combined_df.empty:
+            # Open-Meteo is this workflow's only source, so no data is a
+            # failure. The (empty) declared output is written first so
+            # HTCondor does not hold the job on stage-out; exiting non-zero
+            # then fails it here, with the reason above, instead of in every
+            # downstream job.
+            print("Error: no soil data fetched for any polygon")
+            sys.exit(1)
 
     else:
         parser.print_help()

@@ -31,8 +31,10 @@ pip install -r requirements.txt
     --soil-type loam \
     --output workflow.yml
 
-# Submit to HTCondor via Pegasus
-pegasus-plan --submit -s condorpool -o local workflow.yml
+# Plan and submit (the generator never submits; it prints this command).
+# compute comes from a site catalog (-s FILE or ~/.pegasusrc); on a plain
+# HTCondor pool with no catalog, generate with -e condorpool and use -s condorpool.
+pegasus-plan --dir submit -s compute -o local --output-dir "$PWD/output" --submit workflow.yml
 pegasus-status <run_directory>
 ```
 
@@ -91,7 +93,7 @@ fetch_soil_data (per polygon)
 
 ### Execution Environments
 
-- `condorpool` (default): Standard HTCondor vanilla universe
+- `compute` (default): defined by a hosted site catalog (`-s access-pegasus.yml`, `unity.yml`, or one in `~/.pegasusrc`); the generator writes no site catalog and never submits. `-e condorpool` on a plain HTCondor pool with no catalog. The notebook calls the `create_sites_catalog()` placeholder (local + HTCondor `compute`)
 - DPU mode (`--enable-dpu`): Splits edge-site (fetch) vs cloud-site (compute) for I/O efficiency
 - Container: `Apptainer/SoilMoisture_Container.sif`, staged by Pegasus (`image_site="local"`); no registry pull
 
